@@ -20,11 +20,17 @@ DASH_CONTENT_KEY = "dash_content"
 DASH_DELETED_KEY = "dash_deleted"
 
 # database
-sql_type = 'mysql'   # currently just support mysql
+sql_type = 'postgresql'   # currently just support mysql
+# sql_host = 'localhost'
+# sql_port = 3306
+# sql_user = 'ipd'
+# sql_pwd  = 'thanks'
+# sql_db   = 'IPD_data'
+
 sql_host = 'localhost'
-sql_port = 3306
-sql_user = 'ipd'
-sql_pwd  = 'thanks'
+sql_port = 5432
+sql_user = '<SET USER>'
+sql_pwd  = '<SET PASS>'
 sql_db   = 'IPD_data'
 
 # logging

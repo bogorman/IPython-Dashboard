@@ -17,7 +17,7 @@ from dashboard.server.resources import home
 from dashboard.server.resources import dash
 
 
-TMP_DIR = '/mnt/tmp'
+TMP_DIR = '/tmp'
 TEST_DATA_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_data.json')
 TEST_DASH_DATA = json.load(file(TEST_DATA_FILE, 'r'))
 

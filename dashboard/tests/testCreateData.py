@@ -7,7 +7,9 @@ import json
 import random
 
 # third-party package
-import MySQLdb
+# import MySQLdb
+import psycopg2
+import cStringIO
 import pandas as pd
 
 # user-defined package
@@ -16,9 +18,7 @@ from dashboard.server import utils
 from dashboard.client import sender
 from dashboard.server.resources import home
 
-
-TMP_DIR = '/mnt/tmp'
-
+TMP_DIR = '/tmp'
 
 @utils.print_func_name
 def test_clear_redis():
@@ -69,22 +69,23 @@ def test_create_dataframe():
 
 
 @utils.print_func_name
-def test_create_mysql_data():
+def test_create_db_data():
     # create database
-    def test_create_database():
-        conn = MySQLdb.connect(host=config.sql_host, port=config.sql_port,
-            user=config.sql_user, passwd=config.sql_pwd)
+    # def test_create_database():
+    #     conn = psycopg2.connect(host=config.sql_host, port=config.sql_port,
+    #         user=config.sql_user, password=config.sql_pwd, dbname=config.sql_db)
 
-        conn.cursor().execute('CREATE DATABASE IF NOT EXISTS {};'.format(config.sql_db))
-        conn.close()
+    #     conn.cursor().execute('CREATE DATABASE IF NOT EXISTS {};'.format(config.sql_db))
+    #     conn.close()
 
-        return None
+    #     return None
 
-    test_create_database()
-
+    # test_create_database()
+    print('test_create_db_data')
     # create table
     conn = utils.SQL(host=config.sql_host, port=config.sql_port,
         user=config.sql_user, passwd=config.sql_pwd, db=config.sql_db)
+
     sql = [
         # drop table first
         '''
@@ -93,19 +94,20 @@ def test_create_mysql_data():
         # create table then
         '''CREATE TABLE businesses (
             business_id     INT,
-            name            VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin,
+            name            TEXT,
             address         VARCHAR(256),
             city            CHAR(64),
             state           CHAR(64),
             postal_code     CHAR(32),
-            latitude        FLOAT(32),
-            longitude       FLOAT(32),
+            latitude        CHAR(32),
+            longitude       CHAR(32),
             phone_number    CHAR(32)
         )''',
     ]
     for query in sql:
         query = query.strip()
-        conn.run(query)
+        print(query)
+        conn.execute(query)
 
     # load data into table
     url = 'https://github.com/litaotao/data-science/raw/master/examples/happy-healthy-hungry/data/SFBusinesses/businesses.csv'
@@ -116,8 +118,46 @@ def test_create_mysql_data():
     data.name = [i.replace('\xc8', '') for i in data.name]
     data.name = [i.replace('\xca', '') for i in data.name]
 
-    data.to_sql('businesses', conn.conn, if_exists='append', flavor='mysql', index=False)
+    # data.to_sql('businesses', conn.conn, if_exists='append', flavor='postgesql', index=False)
 
+    postgresql_copy_from(data, 'businesses' ,conn.conn)
+
+def postgresql_copy_from(df, name, con ):
+    # append data into existing postgresql table using COPY
+    
+    # 1. convert df to csv no header
+    output = cStringIO.StringIO()
+    
+    # deal with datetime64 to_csv() bug
+    have_datetime64 = False
+    dtypes = df.dtypes
+    for i, k in enumerate(dtypes.index):
+        dt = dtypes[k]
+        print 'dtype', dt, dt.itemsize
+        if str(dt.type)=="<type 'numpy.datetime64'>":
+            have_datetime64 = True
+
+    if have_datetime64:
+        d2=df.copy()    
+        for i, k in enumerate(dtypes.index):
+            dt = dtypes[k]
+            if str(dt.type)=="<type 'numpy.datetime64'>":
+                d2[k] = [ v.to_pydatetime() for v in d2[k] ]                
+        #convert datetime64 to datetime
+        #ddt= [v.to_pydatetime() for v in dd] #convert datetime64 to datetime
+        d2.to_csv(output, sep='\t', header=False, index=False)
+    else:
+        df.to_csv(output, sep='\t', header=False, index=False)                        
+    output.seek(0)
+    contents = output.getvalue()
+    print 'contents\n', contents
+       
+    # 2. copy from
+    cur = con.cursor()
+    cur.copy_from(output, name)    
+    con.commit()
+    cur.close()
+    return
 
 @utils.print_func_name
 def test_create_dash():

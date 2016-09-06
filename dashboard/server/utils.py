@@ -8,7 +8,7 @@ import random
 from functools import wraps
 
 # third-party package
-import MySQLdb
+import psycopg2
 import pandas as pd
 from flask import make_response, jsonify
 
@@ -117,15 +117,15 @@ class SQL(object):
     """docstring for SQL"""
     def __init__(self, host, port, user, passwd, db):
         super(SQL, self).__init__()
-        self.conn = MySQLdb.connect(host=host, port=port, user=user, passwd=passwd,
-                                    db=db)
+        self.conn = psycopg2.connect(host=host, port=port, user=user, password=passwd,
+                                    dbname=db)
 
     def get_conn(self):
         try:
-            self.conn.stat()
+            self.conn.isolation_level
         except:
-            self.conn = MySQLdb.connect(host=host, port=port, user=user, passwd=passwd,
-                                        db=db)
+            self.conn = psycopg2.connect(host=host, port=port, user=user, password=passwd,
+                                        dbname=db)
 
         return self.conn
 
@@ -142,3 +142,12 @@ class SQL(object):
             return frame.to_dict()
 
         return None
+
+    def execute(self, sql):
+        self.get_conn()
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        self.conn.commit()
+        # result = cursor.fetchall()
+        cursor.close()
+        return
